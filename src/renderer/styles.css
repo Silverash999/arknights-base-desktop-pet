@@ -1,0 +1,509 @@
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+body {
+  position: relative;
+  -webkit-app-region: no-drag;
+  user-select: none;
+}
+
+body.manual-mode {
+  cursor: default;
+}
+
+#pet-stage {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 660px;
+  height: 470px;
+  --pet-slot-inset: 88px;
+  transform: scale(var(--pet-scale, 1));
+  transform-origin: bottom left;
+}
+
+.pet-slot {
+  position: absolute;
+  bottom: 0;
+  --pet-ground-shift: 0px;
+  transform: translateY(var(--pet-ground-shift));
+  transition:
+    transform 820ms cubic-bezier(0.22, 1, 0.36, 1),
+    left 360ms cubic-bezier(0.22, 1, 0.36, 1),
+    right 360ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform, left, right;
+}
+
+.pet-slot {
+  width: 430px;
+  height: 430px;
+  pointer-events: none;
+}
+
+#pet-pixel-drag-hotspot {
+  position: absolute;
+  z-index: 9;
+  display: none;
+  width: 34px;
+  height: 34px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  -webkit-app-region: no-drag;
+}
+
+body.manual-mode #pet-pixel-drag-hotspot.is-active {
+  display: block;
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
+  cursor: move;
+}
+
+body:not(.manual-mode) #pet-pixel-drag-hotspot.is-active {
+  display: block;
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
+  cursor: pointer;
+}
+
+.gnosis {
+  left: var(--pet-slot-inset, 88px);
+}
+
+.silverash {
+  right: var(--pet-slot-inset, 88px);
+}
+
+#pet-stage.sleeping .gnosis {
+  left: 40px;
+  z-index: 2;
+}
+
+#pet-stage.sleeping .silverash {
+  right: 38px;
+  z-index: 1;
+}
+
+.pet-slot img,
+.pet-slot video,
+.pet-slot canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  transform: none;
+}
+
+.pet-slot[data-facing="left"] img,
+.pet-slot[data-facing="left"] video,
+.pet-slot[data-facing="left"] canvas {
+  transform: scaleX(-1);
+}
+
+#size-controls {
+  position: absolute;
+  top: var(--control-top, 8px);
+  left: var(--control-left, 50%);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px;
+  transform: translate3d(-50%, 0, 0);
+  transform-origin: top center;
+  border: 1px solid rgba(255, 255, 255, 0.36);
+  border-radius: 8px;
+  background: rgba(20, 24, 34, 0.64);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.28);
+  opacity: 1;
+  backface-visibility: hidden;
+  will-change: transform, opacity;
+  contain: layout style;
+  isolation: isolate;
+  -webkit-app-region: no-drag;
+  pointer-events: auto;
+}
+
+#size-controls:hover,
+#size-controls:focus-within {
+  opacity: 1;
+}
+
+#size-controls.is-hidden {
+  display: none;
+}
+
+#size-controls button {
+  min-width: 42px;
+  height: 38px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
+  font: 700 16px/1 "Segoe UI", sans-serif;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+#size-controls button:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+#pet-menu[aria-expanded="true"] {
+  background: rgba(126, 178, 255, 0.34);
+}
+
+#controls-panel {
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 50%;
+  display: grid;
+  gap: 7px;
+  width: min(268px, calc(100vw - 16px));
+  box-sizing: border-box;
+  padding: 8px;
+  transform: translate3d(-50%, 0, 0);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 8px;
+  background: rgba(20, 24, 34, 0.84);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.32);
+  backface-visibility: hidden;
+  will-change: transform;
+  -webkit-app-region: no-drag;
+  pointer-events: auto;
+}
+
+#controls-panel[hidden] {
+  display: none;
+}
+
+.control-row {
+  display: grid;
+  grid-template-columns: 42px repeat(3, minmax(44px, 1fr));
+  align-items: center;
+  gap: 5px;
+}
+
+.control-label {
+  color: rgba(255, 255, 255, 0.78);
+  font: 700 12px/1 "Segoe UI", sans-serif;
+  text-align: center;
+}
+
+.activity-row {
+  grid-template-columns: 42px minmax(112px, 1fr) 56px;
+}
+
+#activity-slider {
+  width: 100%;
+  height: 28px;
+  margin: 0;
+  accent-color: #7eb2ff;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+#activity-value {
+  min-width: 0;
+  color: rgba(255, 255, 255, 0.9);
+  font: 700 12px/1 "Segoe UI", sans-serif;
+  text-align: center;
+  white-space: nowrap;
+}
+
+#controls-panel button {
+  min-width: 42px;
+  height: 34px;
+  padding: 0 8px;
+  font-size: 13px;
+  -webkit-app-region: no-drag;
+  pointer-events: auto;
+}
+
+#panel-focus-mode.is-active {
+  background: rgba(126, 178, 255, 0.34);
+}
+
+#size-reset {
+  min-width: 54px !important;
+  font-size: 12px !important;
+}
+
+#speed-reset {
+  min-width: 54px !important;
+  font-size: 12px !important;
+}
+
+.panel-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  padding-top: 2px;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.panel-actions button {
+  min-width: 0 !important;
+  width: 100%;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+#panel-reset-settings,
+#panel-quit {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+#panel-reset-settings:hover,
+#panel-quit:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+#profile-dialog {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
+}
+
+#feedback-dialog {
+  position: absolute;
+  inset: 0;
+  z-index: 31;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
+}
+
+#feedback-dialog[hidden] {
+  display: none;
+}
+
+#profile-dialog[hidden] {
+  display: none;
+}
+
+.profile-dialog-card {
+  width: min(330px, calc(100vw - 30px));
+  max-height: calc(100vh - 24px);
+  box-sizing: border-box;
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.36);
+  border-radius: 10px;
+  color: #fff;
+  background: rgba(20, 24, 34, 0.96);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.42);
+}
+
+.feedback-dialog-card {
+  width: min(330px, calc(100vw - 30px));
+  box-sizing: border-box;
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.36);
+  border-radius: 10px;
+  color: #fff;
+  background: rgba(20, 24, 34, 0.96);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.42);
+}
+
+.feedback-dialog-card h2,
+.feedback-dialog-card p {
+  margin: 0;
+}
+
+.feedback-dialog-card h2 {
+  font: 700 18px/1.2 "Segoe UI", sans-serif;
+}
+
+.feedback-dialog-card p {
+  color: rgba(255, 255, 255, 0.82);
+  font: 600 13px/1.45 "Segoe UI", sans-serif;
+}
+
+.feedback-dialog-actions {
+  display: flex;
+  gap: 7px;
+}
+
+.feedback-dialog-actions button {
+  min-width: 0;
+  flex: 1;
+  height: 34px;
+  border: 0;
+  border-radius: 6px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.16);
+  font: 700 13px/1 "Segoe UI", sans-serif;
+  cursor: pointer;
+}
+
+#feedback-open-form {
+  background: rgba(90, 144, 255, 0.62);
+}
+
+#feedback-dialog-status:empty {
+  display: none;
+}
+
+#feedback-dialog-status.is-error {
+  color: #ffb5b5;
+}
+
+.feedback-privacy-note {
+  color: rgba(255, 255, 255, 0.56) !important;
+  font-size: 11px !important;
+}
+
+.profile-dialog-card h2,
+.profile-dialog-card p {
+  margin: 0;
+}
+
+.profile-dialog-card h2 {
+  font: 700 18px/1.2 "Segoe UI", sans-serif;
+}
+
+.profile-dialog-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#profile-dialog-close,
+#feedback-dialog-close {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.13);
+  font: 700 25px/30px "Segoe UI", sans-serif;
+  cursor: pointer;
+}
+
+#profile-dialog-close:hover,
+#feedback-dialog-close:hover {
+  background: rgba(230, 90, 90, 0.7);
+}
+
+.profile-dialog-card p,
+.profile-dialog-card label {
+  color: rgba(255, 255, 255, 0.82);
+  font: 600 13px/1.35 "Segoe UI", sans-serif;
+}
+
+.profile-dialog-card select {
+  min-height: 34px;
+  padding: 4px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 6px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  font: 600 13px/1 "Segoe UI", sans-serif;
+}
+
+/* Windows renders the opened native select list with a light surface.
+   Keep option text dark there; otherwise all unselected outfits look blank. */
+.profile-dialog-card select option {
+  color: #172033;
+  background: #fff;
+}
+
+.profile-online-source {
+  display: grid;
+  gap: 6px;
+  padding: 9px;
+  border: 1px solid rgba(126, 178, 255, 0.36);
+  border-radius: 7px;
+  background: rgba(90, 144, 255, 0.08);
+}
+
+.profile-online-search,
+.profile-online-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.profile-online-search input {
+  min-width: 0;
+  flex: 1;
+  height: 34px;
+  box-sizing: border-box;
+  padding: 4px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 6px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  font: 600 13px/1 "Segoe UI", sans-serif;
+}
+
+.profile-online-source button {
+  min-width: 78px;
+  height: 34px;
+  border: 0;
+  border-radius: 6px;
+  color: #fff;
+  background: rgba(126, 178, 255, 0.46);
+  font: 700 13px/1 "Segoe UI", sans-serif;
+  cursor: pointer;
+}
+
+.profile-online-source button:disabled,
+.profile-dialog-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+#profile-dialog-status:empty {
+  display: none;
+}
+
+#profile-dialog-status.is-error {
+  color: #ffb5b5;
+}
+
+.profile-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+  padding-top: 4px;
+}
+
+.profile-dialog-actions button {
+  min-width: 84px;
+  height: 34px;
+  border: 0;
+  border-radius: 6px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.16);
+  font: 700 13px/1 "Segoe UI", sans-serif;
+  cursor: pointer;
+}
+
+#profile-dialog-apply {
+  background: rgba(90, 144, 255, 0.62);
+}

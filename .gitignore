@@ -1,0 +1,50 @@
+# Dependencies
+/node_modules/
+
+# Build outputs and packaged apps
+/release/
+/release-*/
+/release-v*/
+/github-public-source-*/
+/github-public-source-*.zip
+
+# Diagnostics and temporary Electron profiles
+/diagnostics-*/
+/tmp-electron-user-data-*/
+/测试证据-v*/
+/测试报告-v*.md
+*.log
+npm-debug.log*
+
+# Local Codex/agent metadata
+/.agents/
+/.review/
+/.tools/
+
+# Old installer experiments. The supported installer template is installer-script/.
+/installer/
+
+# Internal migration notes, not intended for the public repository.
+/项目交接与迁移说明.md
+
+# Runtime character assets. Do not commit these to a public GitHub repository
+# unless you have the right to redistribute them.
+/assets/*
+!/assets/.gitkeep
+!/assets/README.md
+/processed-assets/*
+!/processed-assets/.gitkeep
+!/processed-assets/README.md
+/prts-assets/**/*
+!/prts-assets/**/
+!/prts-assets/**/.gitkeep
+!/prts-assets/**/README.md
+
+# Root-level copies of original media/reference files.
+/*.webm
+/*default.png
+/*动作核对总览.png
+
+# OS/editor noise
+.DS_Store
+Thumbs.db

@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>明日方舟基建桌宠</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main id="pet-stage" aria-label="银灰与灵知桌宠">
+      <section class="pet-slot gnosis" aria-label="灵知"></section>
+      <section class="pet-slot silverash" aria-label="银灰"></section>
+    </main>
+    <div id="pet-pixel-drag-hotspot" aria-hidden="true"></div>
+    <aside id="size-controls" aria-label="桌宠控制栏">
+      <button id="pet-pause" type="button" title="暂停或继续（Ctrl+Alt+P）">||</button>
+      <button id="controls-hide" type="button" title="隐藏控制栏（Ctrl+Alt+H 可重新显示）">x</button>
+      <button id="pet-menu" type="button" title="展开设置" aria-expanded="false" aria-controls="controls-panel">☰</button>
+      <div id="controls-panel" role="group" aria-label="桌宠设置" hidden>
+        <div class="control-row" aria-label="人物大小">
+          <span class="control-label">大小</span>
+          <button id="size-down" type="button" title="缩小">-</button>
+          <button id="size-reset" type="button" title="恢复默认大小">100%</button>
+          <button id="size-up" type="button" title="放大">+</button>
+        </div>
+        <div class="control-row" aria-label="人物距离">
+          <span class="control-label">距离</span>
+          <button id="distance-down" type="button" title="拉近">&lt;</button>
+          <button id="distance-reset" type="button" title="恢复默认距离">50%</button>
+          <button id="distance-up" type="button" title="拉远">&gt;</button>
+        </div>
+        <div class="control-row" aria-label="移动速度">
+          <span class="control-label">速度</span>
+          <button id="speed-down" type="button" title="降低移动速度">&lt;</button>
+          <button id="speed-reset" type="button" title="重置移动速度">1.5x</button>
+          <button id="speed-up" type="button" title="提高移动速度">&gt;</button>
+        </div>
+        <div class="control-row activity-row" aria-label="行为活跃度">
+          <span class="control-label">活跃</span>
+          <input id="activity-slider" type="range" min="0" max="100" step="5" value="50" title="调整行为活跃度" />
+          <output id="activity-value" for="activity-slider">普通</output>
+        </div>
+        <div class="panel-actions" aria-label="桌宠操作">
+          <button id="panel-toggle-auto" type="button">暂停自动行动</button>
+          <button id="panel-focus-mode" type="button">开启专注模式</button>
+          <button id="panel-reset-settings" type="button">恢复默认设置</button>
+          <button id="panel-feedback" type="button">反馈问题</button>
+          <button id="panel-change-characters" type="button">更换干员</button>
+          <button id="panel-quit" type="button">退出桌宠</button>
+        </div>
+      </div>
+    </aside>
+    <section id="profile-dialog" role="dialog" aria-modal="true" aria-labelledby="profile-dialog-title" hidden>
+      <div class="profile-dialog-card">
+        <div class="profile-dialog-heading">
+          <h2 id="profile-dialog-title">更换干员</h2>
+          <button id="profile-dialog-close" type="button" aria-label="退出配置" title="退出桌宠">×</button>
+        </div>
+        <p id="profile-dialog-summary">选择已安装的两个素材包。</p>
+        <div class="profile-online-source">
+          <label for="prts-operator-name">从 PRTS 下载干员素材</label>
+          <div class="profile-online-search">
+            <input id="prts-operator-name" type="text" maxlength="64" placeholder="输入干员名，例如：银灰" />
+            <button id="prts-lookup" type="button">查询</button>
+          </div>
+          <select id="prts-outfit" aria-label="PRTS 时装组" disabled>
+            <option>请先查询干员</option>
+          </select>
+          <div class="profile-online-actions">
+            <button id="prts-download" type="button" disabled>下载基建素材</button>
+            <button id="prts-cancel-download" type="button" hidden>取消下载</button>
+            <button id="prts-open-debug" type="button" hidden>打开查询诊断</button>
+          </div>
+        </div>
+        <label for="profile-slot-a">左侧角色</label>
+        <select id="profile-slot-a"></select>
+        <label for="profile-slot-b">右侧角色</label>
+        <select id="profile-slot-b"></select>
+        <p id="profile-dialog-status" role="status"></p>
+        <div class="profile-dialog-actions">
+          <button id="profile-dialog-cancel" type="button">取消</button>
+          <button id="profile-dialog-apply" type="button">应用组合</button>
+        </div>
+      </div>
+    </section>
+    <section id="feedback-dialog" role="dialog" aria-modal="true" aria-labelledby="feedback-dialog-title" hidden>
+      <div class="feedback-dialog-card">
+        <div class="profile-dialog-heading">
+          <h2 id="feedback-dialog-title">反馈问题</h2>
+          <button id="feedback-dialog-close" type="button" aria-label="关闭反馈" title="关闭">×</button>
+        </div>
+        <p>遇到问题时，请先导出诊断包，再打开问卷星填写反馈并上传 ZIP 文件。</p>
+        <p id="feedback-version"></p>
+        <p id="feedback-current-profile"></p>
+        <div class="feedback-dialog-actions">
+          <button id="feedback-export" type="button">导出诊断包</button>
+          <button id="feedback-open-form" type="button">打开问卷星</button>
+        </div>
+        <p id="feedback-dialog-status" role="status"></p>
+        <p class="feedback-privacy-note">诊断包仅包含版本、设置、角色组合与最近运行日志；不会包含角色素材图片或你的其他个人文件。</p>
+      </div>
+    </section>
+    <script src="prts-spine-runtime.js"></script>
+    <script src="black-key-fallback.js"></script>
+    <script src="renderer.js"></script>
+  </body>
+</html>

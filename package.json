@@ -1,0 +1,53 @@
+{
+  "name": "arknights-base-desktop-pet",
+  "version": "0.1.0",
+  "description": "Arknights base-building desktop pet with selectable operators and outfits",
+  "main": "src/main.js",
+  "author": "",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "dist": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package.ps1",
+    "pack": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package.ps1",
+    "test:profiles": "node scripts/test-profile-manager.js",
+    "probe:prts": "electron scripts/probe-prts.js",
+    "test:prts": "node scripts/test-prts-provider.js",
+    "check:prts-contract": "node scripts/check-prts-contract.js",
+    "test:diagnostics": "node scripts/test-diagnostic-export.js",
+    "test:downloads": "node scripts/test-asset-download-manager.js"
+  },
+  "devDependencies": {
+    "electron": "^38.7.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.local.arknights-base-pet",
+    "productName": "明日方舟基建桌宠",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "win": {
+      "signAndEditExecutable": false,
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "明日方舟基建桌宠"
+    }
+  },
+  "allowScripts": {
+    "electron": true,
+    "electron-winstaller": true
+  }
+}
