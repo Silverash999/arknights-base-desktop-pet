@@ -153,9 +153,45 @@ function extractJsonObjectContaining(text, propertyName) {
 }
 
 function parseMetaFromSpinePage(page, expectedOperatorId) {
-  const json = extractJsonObjectContaining(page, 'prefix');
-  if (!json) throw new PritsProviderError('PRTS Spine 页面未包含模型清单。');
-  return parseMeta(json, expectedOperatorId);
+  const candidates = [];
+  let offset = 0;
+  while (offset < page.length) {
+    const json = extractJsonObjectContaining(page.slice(offset), 'prefix');
+    if (!json) break;
+    candidates.push(json);
+    offset += page.slice(offset).indexOf(json) + json.length;
+  }
+  if (candidates.length === 0) throw new PritsProviderError('PRTS Spine 页面未包含模型清单。');
+
+  let lastError;
+  for (const candidate of candidates) {
+    try {
+      return parseMeta(candidate, expectedOperatorId);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError || new PritsProviderError('PRTS Spine 页面模型清单无效。');
+}
+
+function mergeMetaOutfits(primary, legacy) {
+  const outfits = new Map();
+  for (const outfit of primary.outfits) {
+    outfits.set(outfit.name, { ...outfit, prefix: primary.prefix });
+  }
+  for (const outfit of legacy.outfits) {
+    // A current static entry wins if both catalogues use the same group name.
+    if (!outfits.has(outfit.name)) outfits.set(outfit.name, { ...outfit, prefix: legacy.prefix });
+  }
+  return {
+    prefix: primary.prefix,
+    name: primary.name || legacy.name,
+    outfits: [...outfits.values()]
+  };
+}
+
+function spineRawPageUrl(name) {
+  return `https://${WIKI_HOST}/index.php?title=${encodeURIComponent(`${name}/spine`)}&action=raw`;
 }
 
 function profileId(operatorId, outfitName) {
@@ -186,6 +222,7 @@ class PritsProvider {
     const requestedName = operatorName(nameInput);
     const pageUrl = `https://${WIKI_HOST}/w/${encodeURIComponent(requestedName)}`;
     const spinePageUrl = `${pageUrl}/spine`;
+    const rawSpinePageUrl = spineRawPageUrl(requestedName);
     let spinePage = null;
     let spinePageError = null;
     try {
@@ -195,17 +232,39 @@ class PritsProvider {
     }
 
     const resolveMeta = async (operatorId) => {
+      let currentMeta = null;
       if (spinePage) {
         try {
-          return parseMetaFromSpinePage(spinePage, operatorId);
+          currentMeta = parseMetaFromSpinePage(spinePage, operatorId);
         } catch (error) {
-          // Old PRTS pages only linked their metadata. Retain that fallback,
-          // but prefer the current inline catalogue whenever present.
-          if (!/未包含模型清单/.test(String(error.message || ''))) throw error;
+          // A page without an inline catalogue uses the established asset-meta
+          // fallback below. Fetch raw wikitext only when the rendered page
+          // contained a misleading, non-JSON `prefix` fragment.
+          if (!/未包含模型清单/.test(String(error.message || ''))) {
+            try {
+              currentMeta = parseMetaFromSpinePage(await this.request(rawSpinePageUrl), operatorId);
+            } catch (rawError) {
+              if (!/未包含模型清单/.test(String(rawError.message || ''))) throw rawError;
+              throw error;
+            }
+          }
         }
       }
       const metaUrl = `https://torappu.prts.wiki/assets/char_spine/${operatorId}/meta.json`;
-      return parseMeta(await this.request(metaUrl), operatorId);
+      if (!currentMeta) return parseMeta(await this.request(metaUrl), operatorId);
+
+      // The current static catalogue and the legacy asset metadata sometimes
+      // carry complementary costume groups. Combine them so an existing
+      // base-building model does not disappear during a PRTS migration.
+      if (new URL(currentMeta.prefix).hostname !== ASSET_HOST) return currentMeta;
+      try {
+        const legacyMeta = parseMeta(await this.request(metaUrl), operatorId);
+        return mergeMetaOutfits(currentMeta, legacyMeta);
+      } catch {
+        // The static catalogue is independently usable; do not make a
+        // temporarily unavailable compatibility source block a download.
+        return currentMeta;
+      }
     };
     // Prefer a verified local correction when PRTS's old GetNpcKey module
     // has not caught up with a newer operator. This also avoids making the
@@ -295,7 +354,7 @@ class PritsProvider {
 
     const build = selected.build;
     if (!build) throw new PritsProviderError('所选时装组没有基建模型。');
-    const base = new URL(build, meta.prefix).href;
+    const base = new URL(build, selected.prefix || meta.prefix).href;
     const textureFileName = new URL(`${base}.png`).pathname.split('/').pop();
     if (!textureFileName || !/^[a-z0-9_.-]+$/i.test(textureFileName)) {
       throw new PritsProviderError('PRTS 模型纹理文件名无效。');
@@ -334,5 +393,7 @@ module.exports = {
   extractOperatorId,
   extractOperatorIdFromMap,
   parseMeta,
-  parseMetaFromSpinePage
+  parseMetaFromSpinePage,
+  mergeMetaOutfits,
+  spineRawPageUrl
 };

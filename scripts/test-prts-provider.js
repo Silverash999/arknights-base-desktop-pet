@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict');
-const { ASSET_HOSTS, STATIC_SPINE_DIRECTORIES, PritsProvider, PritsProviderError, extractOperatorId, extractOperatorIdFromMap } = require('../src/main/prts-provider');
+const { ASSET_HOSTS, STATIC_SPINE_DIRECTORIES, PritsProvider, PritsProviderError, extractOperatorId, extractOperatorIdFromMap, spineRawPageUrl } = require('../src/main/prts-provider');
 
 const operatorId = 'char_172_svrash';
 const pageUrl = 'https://prts.wiki/w/%E9%93%B6%E7%81%B0';
@@ -25,7 +25,8 @@ const currentSpinePage = JSON.stringify({
   name: '银灰',
   skin: {
     默认: { 基建: { file: 'char/char_172_svrash/build_char_172_svrash/build_char_172_svrash' } },
-    约克的寒风: { 基建: { file: 'skin/char_172_svrash/build_char_172_svrash_snow_1/build_char_172_svrash_snow_1' } }
+    约克的寒风: { 基建: { file: 'skin/char_172_svrash/build_char_172_svrash_snow_1/build_char_172_svrash_snow_1' } },
+    '探寻者 SKm01': { 基建: { file: 'skin/char_172_svrash/build_char_172_svrash_seeker_1/build_char_172_svrash_seeker_1' } }
   }
 });
 
@@ -54,13 +55,33 @@ const provider = new PritsProvider({
   assert.deepEqual(STATIC_SPINE_DIRECTORIES, ['spine', 'spine38']);
   const currentProvider = new PritsProvider({
     request: async (url) => {
-      assert.equal(url, spinePageUrl);
-      return currentSpinePage;
+      if (url === spinePageUrl) return currentSpinePage;
+      if (url === metaUrl) return meta;
+      throw new Error(`Unexpected current catalogue URL: ${url}`);
     }
   });
+  assert.deepEqual((await currentProvider.lookup('银灰')).outfits, [
+    { name: '默认' },
+    { name: '约克的寒风' },
+    { name: '探寻者 SKm01' },
+    { name: '不融冰' }
+  ]);
   const currentPlan = await currentProvider.createDownloadPlan({ name: '银灰', outfitName: '约克的寒风' });
   assert.equal(currentPlan.files[0].url, 'https://static.prts.wiki/spine/skin/char_172_svrash/build_char_172_svrash_snow_1/build_char_172_svrash_snow_1.skel');
   assert.equal(currentPlan.files[2].url, 'https://static.prts.wiki/spine/skin/char_172_svrash/build_char_172_svrash_snow_1/build_char_172_svrash_snow_1.png');
+  const legacyCurrentPlan = await currentProvider.createDownloadPlan({ name: '银灰', outfitName: '不融冰' });
+  assert.equal(legacyCurrentPlan.files[0].url, 'https://torappu.prts.wiki/assets/char_spine/char_172_svrash/char_172_svrash_ambiencesynesthesia_4/build/build_char_172_svrash_ambienceSynesthesia_4.skel');
+  const htmlWrappedCurrentPage = '<html><body><script>const pageState = { "prefix": "not-a-model-catalog" };</script><div>基建模型 char_172_svrash</div></body></html>';
+  const rawFallbackProvider = new PritsProvider({
+    request: async (url) => {
+      if (url === spinePageUrl) return htmlWrappedCurrentPage;
+      if (url === spineRawPageUrl('银灰')) return currentSpinePage;
+      if (url === metaUrl) return meta;
+      throw new Error(`Unexpected raw fallback URL: ${url}`);
+    }
+  });
+  const rawFallbackPlan = await rawFallbackProvider.createDownloadPlan({ name: '银灰', outfitName: '默认' });
+  assert.equal(rawFallbackPlan.files[0].url, 'https://static.prts.wiki/spine/char/char_172_svrash/build_char_172_svrash/build_char_172_svrash.skel');
   const spine38Page = JSON.stringify({
     prefix: 'https://static.prts.wiki/spine38/',
     name: '缪尔赛思',
