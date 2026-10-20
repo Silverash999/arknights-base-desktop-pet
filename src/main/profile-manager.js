@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { pathToFileURL } = require('node:url');
+const { isRuntimeCompatibleSkeleton, readSkeletonVersion } = require('../shared/spine-compatibility');
 
 const ACTIONS = Object.freeze(['Relax', 'Move', 'Sit', 'Sleep', 'Interact']);
 const MAX_PROFILE_BYTES = 300 * 1024 * 1024;
@@ -176,7 +177,7 @@ function createBundledProfile({ id, operatorId, name, root, modelDirectory, file
   };
 }
 
-function parseProfileDocument(document, root, source = 'imported') {
+function parseProfileDocument(document, root, source = 'imported', { allowIncompatiblePrits = false } = {}) {
   const id = safeId(document.id, '素材包 ID');
   const operator = document.operator || {};
   const name = nonEmptyText(operator.name, '干员名称');
@@ -187,6 +188,25 @@ function parseProfileDocument(document, root, source = 'imported') {
   const defaultAsset = existingFile(root, files.defaultAsset, '默认图片', true);
   const skeleton = existingFile(root, model.skeleton, 'Spine skeleton 文件', true);
   const atlas = existingFile(root, model.atlas, 'Spine atlas 文件', true);
+  const skeletonBytes = document.provider === 'prts' ? fs.readFileSync(skeleton) : null;
+  let runtime = null;
+  if (skeletonBytes && !isRuntimeCompatibleSkeleton(skeletonBytes)) {
+    const version = readSkeletonVersion(skeletonBytes);
+    const actual = version ? version.text : '未知版本';
+    if (!allowIncompatiblePrits) {
+      throw new ProfileValidationError(`PRTS 素材包的 Spine 骨骼版本为 ${actual}，当前桌宠仅支持 Spine 3.8。`);
+    }
+    runtime = {
+      checkedAt: new Date().toISOString(),
+      compatibility: 'incompatible',
+      reason: 'spine-version',
+      skeletonVersion: actual,
+      availableAnimations: [],
+      actions: {},
+      missingRequired: [],
+      missingOptional: []
+    };
+  }
 
   const profile = {
     id,
@@ -201,7 +221,7 @@ function parseProfileDocument(document, root, source = 'imported') {
     },
     actionMap: actions,
     capabilities,
-    runtime: null,
+    runtime,
     calibration: {
       scale: boundedNumber(document.calibration?.scale, 1, 0.1, 3, 'calibration.scale'),
       groundOffset: boundedNumber(document.calibration?.groundOffset, 0, -200, 200, 'calibration.groundOffset'),
@@ -248,7 +268,7 @@ class ProfileManager {
       const manifest = path.join(directory, PROFILE_FILE_NAME);
       if (!fs.existsSync(manifest)) continue;
       try {
-        const profile = parseProfileDocument(readJson(manifest), directory);
+        const profile = parseProfileDocument(readJson(manifest), directory, 'imported', { allowIncompatiblePrits: true });
         this.profiles.set(profile.id, profile);
       } catch (error) {
         console.warn(`[profile-manager] skipped invalid profile ${entry.name}: ${error.message}`);
@@ -256,9 +276,11 @@ class ProfileManager {
     }
 
     let restoredActivePair = false;
+    let hadSavedActivePair = false;
     if (fs.existsSync(this.activePairPath)) {
       try {
         const saved = readJson(this.activePairPath);
+        hadSavedActivePair = true;
         if (this.profiles.has(saved.slotA) && this.profiles.has(saved.slotB)) {
           this.activePair = { slotA: saved.slotA, slotB: saved.slotB };
           restoredActivePair = true;
@@ -274,7 +296,7 @@ class ProfileManager {
         slotB: available[1] || available[0] || null
       };
     }
-    this.saveActivePair();
+    if (!hadSavedActivePair || restoredActivePair) this.saveActivePair();
     return this.getState();
   }
 
@@ -324,6 +346,9 @@ class ProfileManager {
     const profileB = this.getProfile(nextB);
     for (const profile of [profileA, profileB]) {
       if (profile.runtime?.compatibility === 'incompatible') {
+        if (profile.runtime.reason === 'spine-version') {
+          throw new ProfileValidationError(`素材包“${profile.operator.name}（${profile.operator.outfitName}）”的 Spine 骨骼版本为 ${profile.runtime.skeletonVersion || '未知'}，当前桌宠仅支持 Spine 3.8。`);
+        }
         throw new ProfileValidationError(`素材包“${profile.operator.name}（${profile.operator.outfitName}）”缺少必需动作：${profile.runtime.missingRequired.join('、')}。`);
       }
     }

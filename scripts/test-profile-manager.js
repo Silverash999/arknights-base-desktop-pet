@@ -1,12 +1,13 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { ProfileManager, ProfileValidationError } = require('../src/main/profile-manager');
 const { DownloadValidationError, validatePlan, validateDownloadedProfileFiles } = require('../src/main/asset-download-manager');
 
 const root = path.resolve(__dirname, '..');
-const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'silverash-gnosis-profile-test-'));
+const temporaryBase = path.join(root, '.test-tmp');
+fs.mkdirSync(temporaryBase, { recursive: true });
+const temporaryRoot = fs.mkdtempSync(path.join(temporaryBase, 'silverash-gnosis-profile-test-'));
 
 function copy(source, destination) {
   fs.copyFileSync(path.join(root, source), destination);
@@ -82,6 +83,29 @@ try {
   validateDownloadedProfileFiles(source, prtsDownloadManifest);
   fs.writeFileSync(path.join(source, 'model.atlas'), 'build_char_172_svrash.png\nsize: 688,688\n');
   assert.throws(() => validateDownloadedProfileFiles(source, prtsDownloadManifest), DownloadValidationError);
+  fs.writeFileSync(path.join(source, 'model.skel'), Buffer.concat([
+    Buffer.from('\u001cabcdefghijklmnopqrstuvwxyz12\u00072.5.51D\u0000', 'binary'),
+    Buffer.alloc(128)
+  ]));
+  fs.writeFileSync(path.join(source, 'profile.json'), JSON.stringify({
+    ...prtsDownloadManifest,
+    id: 'incompatible-prts-profile'
+  }, null, 2));
+  assert.throws(() => manager.importDirectory(source), ProfileValidationError);
+
+  const legacyUserData = path.join(temporaryRoot, 'legacy-user-data');
+  const legacyProfileDirectory = path.join(legacyUserData, 'profiles', 'incompatible-prts-profile');
+  fs.mkdirSync(path.dirname(legacyProfileDirectory), { recursive: true });
+  fs.cpSync(source, legacyProfileDirectory, { recursive: true });
+  fs.writeFileSync(path.join(legacyUserData, 'active-pair.json'), JSON.stringify({
+    slotA: 'incompatible-prts-profile',
+    slotB: 'incompatible-prts-profile'
+  }, null, 2));
+  const legacyManager = new ProfileManager({ userDataPath: legacyUserData, appPath: path.join(temporaryRoot, 'empty-app') });
+  const legacyState = legacyManager.initialize();
+  assert.deepEqual(legacyState.activePair, { slotA: 'incompatible-prts-profile', slotB: 'incompatible-prts-profile' });
+  assert.equal(legacyState.activeProfiles['slot-a'].runtime.compatibility, 'incompatible');
+  assert.equal(legacyState.activeProfiles['slot-a'].runtime.reason, 'spine-version');
 
   const emptyManager = new ProfileManager({ userDataPath: path.join(temporaryRoot, 'empty-user-data'), appPath: path.join(temporaryRoot, 'empty-app') });
   const emptyState = emptyManager.initialize();

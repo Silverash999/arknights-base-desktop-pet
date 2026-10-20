@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { ProfileManager } = require('./main/profile-manager');
 const { AssetDownloadManager } = require('./main/asset-download-manager');
-const { ASSET_HOSTS, PritsProvider } = require('./main/prts-provider');
+const { ASSET_HOSTS, PritsProvider, requestText } = require('./main/prts-provider');
 const { redactDiagnosticJsonl, assertNoUnredactedUserPaths } = require('./main/diagnostic-export');
 const { buildOfficialOperatorIdMap, parseOperatorIdCache, serializeOperatorIdCache } = require('./main/operator-id-cache');
 const { getBundledOperatorIdMap } = require('./main/bundled-operator-id-map');
@@ -731,11 +731,11 @@ async function chromiumFetch(urlText, {
   throw new Error(`PRTS 请求失败（已尝试 ${maxAttempts} 次）：${lastError?.message || lastError}`);
 }
 
-async function chromiumRequestText(urlText) {
+async function chromiumRequestText(urlText, options = {}) {
   const isOperatorIdMap = urlText.includes('GetNpcKey');
   const response = await chromiumFetch(urlText, isOperatorIdMap
     ? { timeoutMs: 3000, maxAttempts: 1 }
-    : undefined);
+    : options);
   const text = await response.text();
   if (Buffer.byteLength(text, 'utf8') > 5 * 1024 * 1024) throw new Error('PRTS 返回内容过大。');
   return text;
@@ -1994,6 +1994,7 @@ app.whenReady().then(() => {
   const profileState = profileManager.initialize();
   prtsProvider = new PritsProvider({
     request: chromiumRequestText,
+    legacyRequest: requestText,
     discoverOperatorId: discoverOperatorIdWithPritsPage,
     lookupOfficialOperatorId
   });
@@ -2213,8 +2214,9 @@ app.whenReady().then(() => {
     activePritsDownload = { controller };
     try {
       sendPritsDownloadProgress({ phase: 'prepare', name: request?.name || null, outfitName: request?.outfitName || null });
-      const plan = await prtsProvider.createDownloadPlan(request || {});
-      const state = await assetDownloadManager.install(plan, {
+      const plans = await prtsProvider.createDownloadPlans(request || {});
+      const plan = plans[0];
+      const state = await assetDownloadManager.installCandidates(plans, {
         signal: controller.signal,
         onProgress: (progress) => sendPritsDownloadProgress({ ...progress, name: plan.profile.operator.name, outfitName: plan.profile.operator.outfitName })
       });

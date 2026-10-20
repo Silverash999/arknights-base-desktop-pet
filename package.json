@@ -1,6 +1,6 @@
 {
   "name": "arknights-base-desktop-pet",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Arknights base-building desktop pet with selectable operators and outfits",
   "main": "src/main.js",
   "author": "",
@@ -14,7 +14,10 @@
     "test:prts": "node scripts/test-prts-provider.js",
     "check:prts-contract": "node scripts/check-prts-contract.js",
     "test:diagnostics": "node scripts/test-diagnostic-export.js",
-    "test:downloads": "node scripts/test-asset-download-manager.js"
+    "test:downloads": "node scripts/test-asset-download-manager.js",
+    "test:spine-compatibility": "node scripts/test-spine-compatibility.js",
+    "test:prts-catalog-audit": "node scripts/test-audit-prts-catalog.js",
+    "audit:prts-catalog": "electron scripts/audit-prts-catalog.js"
   },
   "devDependencies": {
     "electron": "^38.7.0",

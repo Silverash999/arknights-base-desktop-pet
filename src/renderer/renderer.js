@@ -621,7 +621,45 @@ async function initializeTransparentModels() {
         canvas.remove();
         return;
       }
+      const skinDecision = window.SpineCompatibility?.resolveRenderableSkin?.(loaded.skeleton);
+      if (!skinDecision || skinDecision.decision === 'no-renderable-skin') {
+        try {
+          player.dispose?.();
+        } catch {
+          // Rejecting an empty skeleton is still safe if disposal is unavailable.
+        }
+        canvas.remove();
+        slot.dataset.renderer = 'transparent-spine-no-renderable-skin';
+        diagnostic('transparent-spine-no-renderable-skin', {
+          key,
+          dataRenderer: slot.dataset.renderer,
+          skinDecision: skinDecision || null
+        });
+        continue;
+      }
       const availableAnimations = new Set(loaded.skeleton.data.animations.map((animation) => animation.name));
+      if (!window.SpineCompatibility?.hasRequiredAnimations(character.actionMap, [...availableAnimations])) {
+        try {
+          player.dispose?.();
+        } catch {
+          // Rejecting an incompatible model is still safe if disposal is unavailable.
+        }
+        canvas.remove();
+        slot.dataset.renderer = 'transparent-spine-incompatible';
+        diagnostic('transparent-spine-incompatible', {
+          key,
+          dataRenderer: slot.dataset.renderer,
+          availableAnimations: [...availableAnimations],
+          requiredActions: ['Relax', 'Move']
+        });
+        if (character.profileId) {
+          window.petHost.reportProfileRuntime({
+            profileId: character.profileId,
+            availableAnimations: [...availableAnimations]
+          });
+        }
+        continue;
+      }
       slot.dataset.renderer = 'transparent-spine';
       players.set(key, { canvas, player, availableAnimations, signature: undefined });
       clearFallback(key);
@@ -630,6 +668,7 @@ async function initializeTransparentModels() {
         key,
         dataRenderer: slot.dataset.renderer,
         availableAnimations: [...availableAnimations],
+        skinDecision,
         canvas: { width: canvas.width, height: canvas.height }
       });
       if (character.profileId) {
@@ -943,6 +982,10 @@ function renderPritsProgress(progress) {
   }
   if (progress.phase === 'validate') {
     setProfileDialogStatus('文件下载完成，正在校验素材包…');
+    return;
+  }
+  if (progress.phase === 'candidate-fallback') {
+    setProfileDialogStatus('当前素材来源与桌宠运行时不兼容，正在尝试备用来源…');
     return;
   }
   if (progress.phase === 'complete') return;

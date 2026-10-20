@@ -10,7 +10,7 @@ const { PritsProvider } = require('../src/main/prts-provider');
   assert.ok(catalog.outfits.length >= 2, '银灰应至少提供两个基建时装组。');
   const plan = await provider.createDownloadPlan({ name: '银灰', outfitName: catalog.outfits[0].name });
   assert.equal(plan.files.length, 3);
-  assert.ok(plan.files.every((file) => file.url.startsWith('https://static.prts.wiki/spine/')));
+  assert.ok(plan.files.every((file) => file.url.startsWith('https://static.prts.wiki/spine38/')));
   process.stdout.write(`PRTS contract passed: ${catalog.outfits.map((outfit) => outfit.name).join('、')}\n`);
 })().catch((error) => {
   console.error(`PRTS contract failed: ${error.stack || error.message || error}`);

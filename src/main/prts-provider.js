@@ -28,14 +28,14 @@ class PritsProviderError extends Error {
   }
 }
 
-function requestText(urlText) {
+function requestText(urlText, { timeoutMs = 30000 } = {}) {
   return new Promise((resolve, reject) => {
     const request = https.get(urlText, {
       headers: {
         'User-Agent': 'ArknightsBasePet/0.2 (desktop-pet material downloader)',
         Accept: 'text/html,application/json;q=0.9,*/*;q=0.8'
       },
-      timeout: 30000
+      timeout: timeoutMs
     }, (response) => {
       const status = response.statusCode || 0;
       if (status < 200 || status >= 300) {
@@ -109,7 +109,11 @@ function parseMeta(text, expectedOperatorId) {
   const prefix = new URL(meta.prefix);
   const staticDirectory = prefix.pathname.match(/^\/([^/]+)\/$/)?.[1]?.toLowerCase();
   const isCurrentStaticPrefix = prefix.hostname === ASSET_HOST && STATIC_SPINE_DIRECTORIES.includes(staticDirectory);
-  const isLegacyOperatorPrefix = prefix.hostname === 'torappu.prts.wiki' && prefix.pathname.includes(`/${expectedOperatorId}/`);
+  // Older and newly-created PRTS pages use both forms below. The root form
+  // keeps the operator ID in each `skin.*.基建.file` value, while older
+  // metadata embeds it in the prefix itself.
+  const isLegacyOperatorPrefix = prefix.hostname === 'torappu.prts.wiki'
+    && (prefix.pathname.includes(`/${expectedOperatorId}/`) || prefix.pathname === '/assets/char_spine/');
   if (prefix.protocol !== 'https:' || !ASSET_HOSTS.includes(prefix.hostname) || (!isCurrentStaticPrefix && !isLegacyOperatorPrefix)) {
     throw new PritsProviderError('PRTS 模型清单中的素材地址不符合预期。');
   }
@@ -176,13 +180,18 @@ function parseMetaFromSpinePage(page, expectedOperatorId) {
 
 function mergeMetaOutfits(primary, legacy) {
   const outfits = new Map();
-  for (const outfit of primary.outfits) {
-    outfits.set(outfit.name, { ...outfit, prefix: primary.prefix });
-  }
-  for (const outfit of legacy.outfits) {
-    // A current static entry wins if both catalogues use the same group name.
-    if (!outfits.has(outfit.name)) outfits.set(outfit.name, { ...outfit, prefix: legacy.prefix });
-  }
+  const append = (meta, source) => {
+    for (const outfit of meta.outfits) {
+      const existing = outfits.get(outfit.name) || { name: outfit.name, candidates: [] };
+      existing.candidates.push({ build: outfit.build, prefix: meta.prefix, source });
+      outfits.set(outfit.name, existing);
+    }
+  };
+  // Keep both public PRTS sources when an outfit name overlaps. Static remains
+  // the preferred candidate, while the legacy source can recover when PRTS
+  // serves it in a Spine runtime version unsupported by the bundled renderer.
+  append(primary, 'static');
+  append(legacy, 'legacy');
   return {
     prefix: primary.prefix,
     name: primary.name || legacy.name,
@@ -199,9 +208,17 @@ function profileId(operatorId, outfitName) {
   return `prts-${operatorId}-${hash}`;
 }
 
+function spine38Prefix(prefix) {
+  const url = new URL(prefix);
+  if (url.hostname !== ASSET_HOST || url.pathname !== '/spine/') return null;
+  url.pathname = '/spine38/';
+  return url.href;
+}
+
 class PritsProvider {
-  constructor({ request = requestText, discoverOperatorId = null, lookupOfficialOperatorId = null } = {}) {
+  constructor({ request = requestText, legacyRequest = null, discoverOperatorId = null, lookupOfficialOperatorId = null } = {}) {
     this.request = request;
+    this.legacyRequest = legacyRequest || request;
     this.discoverOperatorId = discoverOperatorId;
     this.lookupOfficialOperatorId = lookupOfficialOperatorId;
     this.operatorIdMapPromise = null;
@@ -226,7 +243,10 @@ class PritsProvider {
     let spinePage = null;
     let spinePageError = null;
     try {
-      spinePage = await this.request(spinePageUrl);
+      // The raw page is both smaller and more stable than the rendered wiki
+      // page. PRTS's rendered page may take several seconds before it even
+      // exposes the same model catalogue.
+      spinePage = await this.request(rawSpinePageUrl, { timeoutMs: 5000, maxAttempts: 1 });
     } catch (error) {
       spinePageError = error;
     }
@@ -237,14 +257,13 @@ class PritsProvider {
         try {
           currentMeta = parseMetaFromSpinePage(spinePage, operatorId);
         } catch (error) {
-          // A page without an inline catalogue uses the established asset-meta
-          // fallback below. Fetch raw wikitext only when the rendered page
-          // contained a misleading, non-JSON `prefix` fragment.
-          if (!/未包含模型清单/.test(String(error.message || ''))) {
+          // Some raw pages may omit the embedded JSON. In that case, retain
+          // the rendered-page fallback instead of repeating the raw request.
+          if (/未包含模型清单/.test(String(error.message || ''))) {
             try {
-              currentMeta = parseMetaFromSpinePage(await this.request(rawSpinePageUrl), operatorId);
-            } catch (rawError) {
-              if (!/未包含模型清单/.test(String(rawError.message || ''))) throw rawError;
+              currentMeta = parseMetaFromSpinePage(await this.request(spinePageUrl), operatorId);
+            } catch (renderedError) {
+              if (!/未包含模型清单/.test(String(renderedError.message || ''))) throw renderedError;
               throw error;
             }
           }
@@ -258,7 +277,7 @@ class PritsProvider {
       // base-building model does not disappear during a PRTS migration.
       if (new URL(currentMeta.prefix).hostname !== ASSET_HOST) return currentMeta;
       try {
-        const legacyMeta = parseMeta(await this.request(metaUrl), operatorId);
+        const legacyMeta = parseMeta(await this.legacyRequest(metaUrl, { timeoutMs: 2000, maxAttempts: 1 }), operatorId);
         return mergeMetaOutfits(currentMeta, legacyMeta);
       } catch {
         // The static catalogue is independently usable; do not make a
@@ -346,41 +365,60 @@ class PritsProvider {
     };
   }
 
-  async createDownloadPlan({ name, outfitName }) {
+  async createDownloadPlans({ name, outfitName }) {
     const requestedName = operatorName(name);
     const { pageUrl, operatorId, meta } = await this.resolveCatalog(requestedName);
     const selected = meta.outfits.find((outfit) => outfit.name === outfitName);
     if (!selected) throw new PritsProviderError('请选择该干员提供的时装组。');
 
-    const build = selected.build;
-    if (!build) throw new PritsProviderError('所选时装组没有基建模型。');
-    const base = new URL(build, selected.prefix || meta.prefix).href;
-    const textureFileName = new URL(`${base}.png`).pathname.split('/').pop();
-    if (!textureFileName || !/^[a-z0-9_.-]+$/i.test(textureFileName)) {
-      throw new PritsProviderError('PRTS 模型纹理文件名无效。');
-    }
+    const baseCandidates = selected.candidates || [{
+      build: selected.build,
+      prefix: selected.prefix || meta.prefix,
+      source: new URL(selected.prefix || meta.prefix).hostname === ASSET_HOST ? 'static' : 'legacy'
+    }];
+    const candidates = baseCandidates.flatMap((candidate) => {
+      const compatiblePrefix = candidate.source === 'static' ? spine38Prefix(candidate.prefix) : null;
+      return compatiblePrefix
+        ? [{ ...candidate, prefix: compatiblePrefix, source: 'spine38' }, candidate]
+        : [candidate];
+    });
     const id = profileId(operatorId, outfitName);
-    return {
-      profile: {
-        id,
-        provider: 'prts',
-        sourcePage: pageUrl,
-        operator: { id: operatorId, name: meta.name || requestedName, outfitId: build, outfitName },
-        actions: ACTIONS,
-        files: {
-          // Spine atlas records the original texture filename. Keep that
-          // filename instead of renaming it to model.png, otherwise the
-          // runtime cannot resolve the atlas texture after import.
-          defaultAsset: textureFileName,
-          model: { skeleton: 'model.skel', atlas: 'model.atlas' }
-        }
-      },
-      files: [
-        { path: 'model.skel', url: `${base}.skel` },
-        { path: 'model.atlas', url: `${base}.atlas` },
-        { path: textureFileName, url: `${base}.png` }
-      ]
-    };
+    return candidates.map((candidate) => {
+      const build = candidate.build;
+      if (!build) throw new PritsProviderError('所选时装组没有基建模型。');
+      const base = new URL(build, candidate.prefix || meta.prefix).href;
+      const textureFileName = new URL(base + '.png').pathname.split('/').pop();
+      if (!textureFileName || !/^[a-z0-9_.-]+$/i.test(textureFileName)) {
+        throw new PritsProviderError('PRTS 模型纹理文件名无效。');
+      }
+      return {
+        source: candidate.source,
+        profile: {
+          id,
+          provider: 'prts',
+          sourcePage: pageUrl,
+          operator: { id: operatorId, name: meta.name || requestedName, outfitId: build, outfitName },
+          actions: ACTIONS,
+          files: {
+            // Spine atlas records the original texture filename. Keep that
+            // filename instead of renaming it to model.png, otherwise the
+            // runtime cannot resolve the atlas texture after import.
+            defaultAsset: textureFileName,
+            model: { skeleton: 'model.skel', atlas: 'model.atlas' }
+          }
+        },
+        files: [
+          { path: 'model.skel', url: base + '.skel' },
+          { path: 'model.atlas', url: base + '.atlas' },
+          { path: textureFileName, url: base + '.png' }
+        ]
+      };
+    });
+  }
+
+  async createDownloadPlan(request) {
+    const [plan] = await this.createDownloadPlans(request);
+    return plan;
   }
 }
 
@@ -395,5 +433,6 @@ module.exports = {
   parseMeta,
   parseMetaFromSpinePage,
   mergeMetaOutfits,
+  requestText,
   spineRawPageUrl
 };
