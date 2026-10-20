@@ -1,89 +1,83 @@
 # 明日方舟基建桌宠
 
-银灰与灵知同屏成对出现的 Windows Electron 桌宠。项目使用明日方舟基建动作资源：优先加载本地 PRTS 透明 Spine 素材，透明 APNG 作为第一降级，原始黑底 WebM 的运行时抠黑方案作为最后降级。
+Windows Electron 桌面宠物：在桌面上显示一位或两位《明日方舟》干员，并使用基建动作进行移动、休息和互动。角色素材不随程序分发；首次使用时可通过 PRTS 查询干员、选择基建时装组并下载素材。
 
-> 这是非官方个人项目。公开发布源码时，请不要直接提交角色素材，除非你确认自己拥有再分发授权。素材目录和文件清单见 `ASSETS.md`。
+> 这是非官方个人项目，与游戏官方无关。公开分发时请勿直接提交或再分发角色素材，除非你确认自己拥有相应授权。素材目录与文件清单见 [ASSETS.md](ASSETS.md)。
+
+## 下载与安装
+
+请前往 [最新正式版下载页](https://github.com/Silverash999/arknights-base-desktop-pet/releases/latest)。该链接会自动跳转至最新 Release，无需随着版本号更新 README。
+
+- **安装版（推荐）**：下载名称含 `installer` 的 ZIP，解压后双击 `Install-ArknightsBasePet.cmd`。适合日常使用，会安装到本机应用目录并创建快捷方式。
+- **便携版（免安装）**：下载名称含 `portable` 的 ZIP，解压后直接运行 `ArknightsBasePet.exe`。适合临时使用或放在 U 盘中携带。
+
+两者功能完全相同，均不内置角色素材，也不会覆盖已有的用户设置、已下载素材或诊断记录。普通使用不需要安装 Node.js。
+
+## 首次使用
+
+1. 启动桌宠后，打开控制栏中的“更换干员”。
+2. 输入干员名称并查询。
+3. 选择一个可用的基建时装组，下载素材。
+4. 分别为左侧与右侧角色选择已下载的干员，再应用组合。
+
+下载的角色素材、设置和诊断记录保存在：
+
+```text
+%APPDATA%\arknights-base-desktop-pet
+```
+
+如需从旧电脑恢复这些数据，请先完全退出桌宠，再使用迁移包根目录提供的 `restore-user-data.ps1`；该脚本默认不会覆盖新电脑已有数据。
 
 ## 功能
 
-- 银灰与灵知固定成对出现，使用 Move、Relax、Sit、Sleep、Interact 等基建动作。
-- 自主移动时，Move 动画方向与真实水平位移一致；向左移动会镜像原始素材。
-- 停止时回到 Relax；Sit、Sleep、Interact 只在窗口贴住屏幕工作区底边时触发，避免空中坐下或睡觉。
-- 默认尺寸 60%，默认人物距离 50%，可在控制栏中调节大小、人物距离、移动速度和活跃度。
-- 支持专注模式、配置持久化和恢复默认设置。
-- 自动状态下鼠标穿透，不遮挡其他应用点击；暂停后允许拖拽。
-- `Ctrl+Alt+P` 暂停或继续自动行动，`Ctrl+Alt+H` 重新显示隐藏后的控制栏。
-- 窗口会限制在屏幕工作区内，不会被拖到屏幕外。
-- 通过脚本安装包迁移到其他 Windows 电脑，不使用旧 `Setup.exe`。
+- 左右角色可独立选择和组合；单角色或双角色均可使用。
+- 通过 PRTS 查询干员与基建时装组，并下载对应 Spine 素材。
+- 支持 Move、Relax、Sit、Sleep、Interact 等基建动作；移动方向会随实际水平位移调整。
+- 支持调节人物大小、角色间距、移动速度和活跃度。
+- 支持暂停/恢复自动行动、专注模式、恢复默认设置和反馈问题。
+- 自动状态下鼠标穿透，暂停后可拖拽移动；窗口会限制在屏幕工作区内。
+- 支持左右组合、设置及下载素材在重启后恢复。
 
-## 本地运行
+快捷键：
 
-先安装依赖：
+- `Ctrl+Alt+P`：暂停或继续自动行动。
+- `Ctrl+Alt+H`：重新显示隐藏后的控制栏。
+
+## 常见问题与诊断
+
+- Windows SmartScreen 提示通常是因为程序没有商业代码签名。仅在确认安装包来自本项目 Release 时，选择“更多信息”→“仍要运行”。
+- 如遇查询、下载、显示或动作异常，可在控制栏点击“反馈问题”导出已脱敏的诊断 ZIP。
+- 诊断日志目录：`%APPDATA%\arknights-base-desktop-pet\diagnostics`。
+- 当前发布包仅支持 Windows。
+
+## 本地开发
+
+安装依赖后启动：
 
 ```powershell
 npm install
-```
-
-开发时如需使用内置的银灰 × 灵知回归素材，请确认本地已经放好 `assets/`、`prts-assets/`、`processed-assets/` 中的素材后运行：
-
-```powershell
 npm start
 ```
 
-没有这些目录时，应用会进入素材包配置状态；可从控制栏导入符合 `素材包格式说明.md` 的本地素材包。
+开发环境同样不要求内置角色素材；可在运行后通过“更换干员”查询和下载。需要测试本地素材包时，请参考 [素材包格式说明.md](素材包格式说明.md)。
 
 ## 打包
 
-默认输出到 `release/`：
+默认输出到新的 `release/` 目录：
 
 ```powershell
 npm run dist
 ```
 
-也可以指定新的输出目录，避免覆盖旧版本：
+如需保留已有发布目录，请指定一个尚不存在的新目录：
 
 ```powershell
-$env:PET_RELEASE_DIR = 'release-final'
+$env:PET_RELEASE_DIR = 'release-next'
 npm run dist
 ```
 
-打包结果包含：
+默认构建产物包括便携版 ZIP 和完整安装包，且不会将角色素材打入安装包。面向普通用户的安装、卸载和日志位置说明见 [安装说明.md](安装说明.md)。
 
-- `明日方舟基建桌宠-portable/`：便携版目录；
-- `明日方舟基建桌宠-portable.zip`：便携版压缩包；
-- `script-installer/Install-ArknightsBasePet.cmd`：迁移安装入口。
+## 贡献与发布
 
-默认安装包不再内置角色素材。首次启动会进入素材包配置：输入干员名称，选择 PRTS 返回的时装组后即可下载对应的“基建”Spine 素材。若仅用于开发回归、需要把当前银灵素材一并打进测试包，可在打包前设置：
-
-```powershell
-$env:PET_BUNDLE_MATERIALS = '1'
-npm run dist
-```
-
-在其他 Windows 电脑上，把 `script-installer/` 整个目录复制过去，运行 `Install-ArknightsBasePet.cmd` 即可安装并创建快捷方式。
-
-面向普通用户的安装、运行、SmartScreen、卸载和日志位置说明见 `安装说明.md`。
-
-## 给 AI 排查用
-
-桌宠会在用户目录下保存配置和诊断日志，普通使用时不需要打开这些文件。
-
-- 诊断日志目录：`%APPDATA%\arknights-base-desktop-pet\diagnostics`
-- 配置文件：`%APPDATA%\arknights-base-desktop-pet\settings.json`
-
-如果遇到闪烁、拖拽、动作异常或启动报错，可以让 AI 帮忙读取或打包上述目录。诊断日志为 `.jsonl` 格式，文件名类似 `render-diagnostics-*.jsonl`。
-
-## 发布到 GitHub
-
-公开仓库建议只提交代码、脚本和说明文件，不提交素材、`node_modules/`、历史 `release*/`、诊断日志等本地文件。本项目已提供 `.gitignore`，直接按下面流程发布即可：
-
-```powershell
-git init
-git add .
-git commit -m "Initial release"
-git branch -M main
-git remote add origin https://github.com/<你的用户名>/<仓库名>.git
-git push -u origin main
-```
-
-如果你希望把可运行成品也发给别人，建议在 GitHub 的 Releases 页面上传本地构建出的 `明日方舟基建桌宠-portable.zip` 或 `script-installer/` 压缩包；公开分发前同样需要确认素材授权。
+公开仓库只应提交源代码、脚本和说明文件；不要提交 `node_modules/`、角色素材、用户设置、诊断日志或历史发布目录。发布新版本时，请创建新的 GitHub Release；README 中的“最新正式版下载页”会自动指向它。
