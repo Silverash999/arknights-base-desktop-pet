@@ -8,6 +8,9 @@ $legacyInstallDirs = @(
 )
 $stagingDir = Join-Path $env:TEMP 'arknights-base-pet-install'
 $launcher = 'ArknightsBasePet.exe'
+$uninstallCommand = 'Uninstall-ArknightsBasePet.cmd'
+$uninstallScript = 'uninstall.ps1'
+$uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\ArknightsBasePet'
 $processNames = @('ArknightsBasePet', 'SilverAshGnosisPet')
 
 if (-not (Test-Path -LiteralPath $package)) {
@@ -48,6 +51,28 @@ if (-not (Test-Path -LiteralPath $exe)) {
   throw 'The packaged desktop pet executable was not found.'
 }
 
+foreach ($file in @($uninstallCommand, $uninstallScript)) {
+  $source = Join-Path $PSScriptRoot $file
+  if (-not (Test-Path -LiteralPath $source)) {
+    throw "Installer support file is missing: $file"
+  }
+  Copy-Item -LiteralPath $source -Destination (Join-Path $targetDir $file) -Force
+}
+
+$installedPackage = Get-Content -LiteralPath (Join-Path $targetDir 'resources\app\package.json') -Raw | ConvertFrom-Json
+$installedVersion = [string]$installedPackage.version
+$installedUninstallCommand = Join-Path $targetDir $uninstallCommand
+$commandProcessor = Join-Path $env:SystemRoot 'System32\cmd.exe'
+$uninstallString = '"{0}" /d /c ""{1}""' -f $commandProcessor, $installedUninstallCommand
+New-Item -Path $uninstallKey -Force | Out-Null
+New-ItemProperty -Path $uninstallKey -Name 'DisplayName' -Value '明日方舟基建桌宠' -PropertyType String -Force | Out-Null
+New-ItemProperty -Path $uninstallKey -Name 'DisplayVersion' -Value $installedVersion -PropertyType String -Force | Out-Null
+New-ItemProperty -Path $uninstallKey -Name 'DisplayIcon' -Value $exe -PropertyType String -Force | Out-Null
+New-ItemProperty -Path $uninstallKey -Name 'Publisher' -Value 'Silverash999' -PropertyType String -Force | Out-Null
+New-ItemProperty -Path $uninstallKey -Name 'UninstallString' -Value $uninstallString -PropertyType String -Force | Out-Null
+New-ItemProperty -Path $uninstallKey -Name 'NoModify' -Value 1 -PropertyType DWord -Force | Out-Null
+New-ItemProperty -Path $uninstallKey -Name 'NoRepair' -Value 1 -PropertyType DWord -Force | Out-Null
+
 $shell = New-Object -ComObject WScript.Shell
 foreach ($shortcutPath in @(
   (Join-Path ([Environment]::GetFolderPath('Desktop')) '明日方舟基建桌宠.lnk'),
@@ -58,5 +83,10 @@ foreach ($shortcutPath in @(
   $shortcut.WorkingDirectory = $targetDir
   $shortcut.Save()
 }
+
+$uninstallShortcut = $shell.CreateShortcut((Join-Path ([Environment]::GetFolderPath('Programs')) '卸载明日方舟基建桌宠.lnk'))
+$uninstallShortcut.TargetPath = $installedUninstallCommand
+$uninstallShortcut.WorkingDirectory = $targetDir
+$uninstallShortcut.Save()
 
 Start-Process -FilePath $exe -WorkingDirectory $targetDir

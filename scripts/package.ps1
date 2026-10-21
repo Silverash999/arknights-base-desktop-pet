@@ -66,6 +66,8 @@ New-Item -ItemType Directory -Force -Path $installerOutput | Out-Null
 Copy-Item -LiteralPath $zipPath -Destination (Join-Path $installerOutput 'pet.zip') -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'installer-script\Install-ArknightsBasePet.cmd') -Destination $installerOutput -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'installer-script\install.ps1') -Destination $installerOutput -Force
+Copy-Item -LiteralPath (Join-Path $projectRoot 'installer-script\Uninstall-ArknightsBasePet.cmd') -Destination $installerOutput -Force
+Copy-Item -LiteralPath (Join-Path $projectRoot 'installer-script\uninstall.ps1') -Destination $installerOutput -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot $installGuideName) -Destination $installerOutput -Force
 
 $completeInstallerDir = Join-Path $releaseRoot $completeInstallerName
@@ -73,6 +75,8 @@ New-Item -ItemType Directory -Force -Path $completeInstallerDir | Out-Null
 Copy-Item -LiteralPath (Join-Path $installerOutput 'pet.zip') -Destination $completeInstallerDir -Force
 Copy-Item -LiteralPath (Join-Path $installerOutput 'Install-ArknightsBasePet.cmd') -Destination $completeInstallerDir -Force
 Copy-Item -LiteralPath (Join-Path $installerOutput 'install.ps1') -Destination $completeInstallerDir -Force
+Copy-Item -LiteralPath (Join-Path $installerOutput 'Uninstall-ArknightsBasePet.cmd') -Destination $completeInstallerDir -Force
+Copy-Item -LiteralPath (Join-Path $installerOutput 'uninstall.ps1') -Destination $completeInstallerDir -Force
 Copy-Item -LiteralPath (Join-Path $installerOutput $installGuideName) -Destination $completeInstallerDir -Force
 
 $completeZipPath = Join-Path $releaseRoot "$completeInstallerName.zip"
