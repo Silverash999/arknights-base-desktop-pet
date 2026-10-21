@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 
 $package = Join-Path $PSScriptRoot 'pet.zip'
 $targetDir = Join-Path $env:LOCALAPPDATA 'ArknightsBasePet'
